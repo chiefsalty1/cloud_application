@@ -1,0 +1,32 @@
+version: '3'
+services:
+  analyzer_run:
+    #path to build content
+    container_name: analyzer
+    build: .
+    ports:
+      - "22"
+    links:
+      - mpi_node
+    networks:
+      - mpi_net
+    volumes:
+      - ./workdir:/home/kaggleuser/workdir
+  mpi_node:
+    build: .
+    networks:
+      - mpi_net
+  mongo:
+    image: mongo-express
+    ports:
+      - 28017:27017
+    volumes:
+      - ./db-data:/data/db
+    environment:
+      - MONGO_DATA_DIR=/data/db
+      - MONGO_LOG_DIR=/dev/null
+    command: mongod --smallfiles --logpath=/dev/null
+
+networks:
+  mpi_net:
+    driver: bridge

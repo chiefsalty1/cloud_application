@@ -1,0 +1,4 @@
+
+# ignore all rc files and sh files
+*.sh
+*.rc

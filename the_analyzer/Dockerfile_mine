@@ -1,0 +1,60 @@
+FROM conda/miniconda3 
+
+ENV USER kaggleuser
+
+ENV DEBIAN_FRONTEND=noninteractive \
+HOME=/home/${USER}
+
+# ------------------------------------------------------------
+# Add an 'kaggleuser' user
+# ------------------------------------------------------------
+
+RUN adduser --disabled-password --gecos "" ${USER} && \
+    echo "${USER} ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+RUN chown ${USER} /home/${USER}
+
+#make directory for workdir 
+RUN mkdir -p /home/${USER}/workdir
+
+WORKDIR /home/${USER}
+
+# Copy code (mounted in development)
+COPY ./ /home/${USER}
+
+#AGG added openssh-server mirror since it is failing to install
+RUN printf "deb http://mirrors.kernel.org/ubuntu bionic-updates main" > /etc/apt/sources.list.d/backports.list
+
+#install MPI via script
+RUN bash ./workdir/mpi_install_script.sh
+
+#upgrade conda based on warning message to update it
+RUN conda update -n base -c defaults conda
+
+#install jupyter using conda
+RUN conda install -y jupyter
+
+#install kaggle (miniconda pip points to version 3py)
+RUN pip3 install --user kaggle
+
+#install the key
+COPY ./kaggle /home/${USER}/.kaggle/
+
+#clean up
+RUN apt-get clean && apt-get purge 
+
+
+# ------------------------------------------------------------
+# Configure OpenMPI
+# ------------------------------------------------------------
+
+#RUN rm -fr ${HOME}/.openmpi && mkdir -p ${HOME}/.openmpi
+ADD default-mca-params.conf ${HOME}/.openmpi/mca-params.conf
+RUN chown -R ${USER}:${USER} ${HOME}/.openmpi
+
+
+#Expose default port for Jupyter
+EXPOSE 8888
+
+#Start up jupyter 
+ENTRYPOINT jupyter notebook --ip=0.0.0.0 --allow-root 
